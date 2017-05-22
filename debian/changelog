@@ -1,14 +1,9 @@
-ffmpeg (7:3.2.4-1build2) zesty; urgency=medium
+ffmpeg (7:3.2.5-1) unstable; urgency=medium
 
-  * No-change rebuild against latest libbluray
+  * Team upload.
+  * New upstream release.
 
- -- Jeremy Bicha <jbicha@ubuntu.com>  Mon, 06 Mar 2017 07:28:02 -0500
-
-ffmpeg (7:3.2.4-1build1) zesty; urgency=medium
-
-  * No-change rebuild against libx265-110.
-
- -- Mattia Rizzolo <mapreri@ubuntu.com>  Sun, 19 Feb 2017 16:57:24 +0100
+ -- Sebastian Ramacher <sramacher@debian.org>  Mon, 22 May 2017 22:03:36 +0200
 
 ffmpeg (7:3.2.4-1) unstable; urgency=medium
 
