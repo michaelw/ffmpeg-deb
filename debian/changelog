@@ -1,3 +1,10 @@
+ffmpeg (7:3.4.2-1build1instart1) xenial; urgency=low
+
+  * fix xenial build by downgrading debhelper (>=9)
+  * remove libmysofa (not present on xenial)
+
+ -- Michael Weber <mweber@instartlogic.com>  Tue, 13 Mar 2018 07:20:17 -0700
+
 ffmpeg (7:3.4.2-1build1) bionic; urgency=medium
 
   * No-change rebuild against latest vpx

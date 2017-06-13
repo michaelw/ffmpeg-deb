@@ -61,7 +61,6 @@ CONFIG := --prefix=/usr \
 	--enable-libgme \
 	--enable-libgsm \
 	--enable-libmp3lame \
-	--enable-libmysofa \
 	--enable-libopenjpeg \
 	--enable-libopenmpt \
 	--enable-libopus \
