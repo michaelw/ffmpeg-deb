@@ -1,3 +1,9 @@
+ffmpeg (7:3.2.5-1instart1) xenial; urgency=low
+
+  * Fix build for xenial
+
+ -- Michael Weber <mweber@instartlogic.com>  Tue, 13 Jun 2017 00:51:27 -0700
+
 ffmpeg (7:3.2.5-1) unstable; urgency=medium
 
   * Team upload.
