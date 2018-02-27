@@ -1,8 +1,167 @@
-ffmpeg (7:3.2.5-1instart1) xenial; urgency=low
+ffmpeg (7:3.4.2-1build1) bionic; urgency=medium
 
-  * Fix build for xenial
+  * No-change rebuild against latest vpx
 
- -- Michael Weber <mweber@instartlogic.com>  Tue, 13 Jun 2017 00:51:27 -0700
+ -- Jeremy Bicha <jbicha@ubuntu.com>  Tue, 27 Feb 2018 07:01:32 -0500
+
+ffmpeg (7:3.4.2-1) unstable; urgency=medium
+
+  * New upstream release.
+    - Fixes CVE-2018-6392, CVE-2018-6621.
+
+ -- James Cowgill <jcowgill@debian.org>  Mon, 12 Feb 2018 20:08:34 +0000
+
+ffmpeg (7:3.4.1-1) unstable; urgency=medium
+
+  * New upstream release.
+    - Fixes CVE-2017-16840, CVE-2017-17081.
+
+  * debian/control:
+    - Bump standards version to 4.1.2.
+  * debian/patches:
+    - Drop patches applied upstream.
+
+ -- James Cowgill <jcowgill@debian.org>  Mon, 11 Dec 2017 17:31:16 +0000
+
+ffmpeg (7:3.4-4) unstable; urgency=medium
+
+  * debian/control:
+    - Require 3.4 avcodec/avfilter when 3.4 avutil is in use. (Closes: #882598)
+  * debian/patches:
+    - Add patch to fix random FTBFS on i386 caused by float precision issues.
+      (Closes: #882075)
+
+ -- James Cowgill <jcowgill@debian.org>  Sat, 25 Nov 2017 10:49:41 +0000
+
+ffmpeg (7:3.4-3) unstable; urgency=medium
+
+  * debian/patches:
+    - Add patch to fix dash muxer autopkgtest errors on big-endian.
+
+ -- James Cowgill <jcowgill@debian.org>  Sat, 18 Nov 2017 15:45:03 +0000
+
+ffmpeg (7:3.4-2) unstable; urgency=medium
+
+  * Upload to unstable.
+
+  * debian/control:
+    - Set Rules-Requires-Root: no
+  * debian/libavutil55.lintian-overrides:
+    - Add shlib-with-non-pic-code override on i386.
+  * debian/patches:
+    - Add patch to fix checkasm test on armhf. (Closes: #879800)
+    - Add patch to workaround incorrect use of drain packets in compat decode
+      api. (Closes: #879673)
+
+ -- James Cowgill <jcowgill@debian.org>  Thu, 09 Nov 2017 16:13:48 +0000
+
+ffmpeg (7:3.4-1) experimental; urgency=medium
+
+  * New upstream release.
+
+  * debian/control:
+    - Bump standards version to 4.1.1.
+    - Remove "Priority: extra" which is deprecated in policy 4.0.1.
+  * debian/copyright:
+    - Update debian/copyright using decopy.
+  * debian/patches:
+    - Drop patches applied upstream.
+  * debian/rules:
+    - Update build options and enabled libraries.
+  * debian/tests:
+    - Fix examples package test by using new build target.
+    - Update autopkgtest encdec lists.
+
+ -- James Cowgill <jcowgill@debian.org>  Sat, 21 Oct 2017 19:35:10 +0100
+
+ffmpeg (7:3.3.4-2) unstable; urgency=medium
+
+  * debian/patches/0004-Add-support-for-LibOpenJPEG-v2.2-git.patch:
+    - Add upstream patch to fix FTBFS with OpenJPEG 2.2. (Closes: #876805)
+
+ -- James Cowgill <jcowgill@debian.org>  Tue, 26 Sep 2017 11:42:03 +0100
+
+ffmpeg (7:3.3.4-1) unstable; urgency=medium
+
+  * New upstream bugfix release.
+    - Fixes CVE-2017-14054, CVE-2017-14055, CVE-2017-14056,
+      CVE-2017-14057, CVE-2017-14058, CVE-2017-14059, CVE-2017-14169,
+      CVE-2017-14170, CVE-2017-14171, CVE-2017-14222, CVE-2017-14223,
+      CVE-2017-14225.
+    - Fixes crashes on ARM due to misalignment. (Closes: #872503)
+
+  * debian/patches:
+    - Drop 0004-swscale-fix-gbrap16-alpha-channel-issues.patch,
+      applied upstream.
+
+ -- James Cowgill <jcowgill@debian.org>  Tue, 12 Sep 2017 23:44:51 +0100
+
+ffmpeg (7:3.3.3-4) unstable; urgency=medium
+
+  * debian/control:
+    - Bump standards version to 4.1.0 (no changes).
+  * debian/patches/0006-disable-ppc-scalarproduct.patch:
+    - Drop patch now that the GCC-7 toolchain bug is fixed.
+
+ -- James Cowgill <jcowgill@debian.org>  Wed, 06 Sep 2017 20:39:42 +0100
+
+ffmpeg (7:3.3.3-3) unstable; urgency=medium
+
+  * Add myself to the list of uploaders.
+  * Disable broken optimizations on ppc64el to fix FTBFS. (See: #871565)
+
+ -- James Cowgill <jcowgill@debian.org>  Wed, 16 Aug 2017 11:11:59 +0100
+
+ffmpeg (7:3.3.3-2) unstable; urgency=medium
+
+  * Team upload.
+  * Add 0005-arm-thumb2-blx.patch to fix SIGBUS on armhf.
+    Thanks to Jiong Wang. (Closes: #870622)
+
+ -- James Cowgill <jcowgill@debian.org>  Tue, 08 Aug 2017 21:53:47 -0400
+
+ffmpeg (7:3.3.3-1) unstable; urgency=medium
+
+  * Team upload.
+  * New upstream release.
+    - Fixes testsuite failure on arm64. (Closes: #870050)
+  * Add patches to fix testsuite failures on big-endian. (Closes: #870048)
+    - 0001-sws-tests-pixdesc_query-replace-rgb-based-pix-fmts-w.patch.
+    - 0002-swscale-fix-gbrap16-alpha-channel-issues.patch to fix. This patch
+      also fixes some other alpha channel issues with the gbrap16 pixel
+      formats.
+
+  * debian/rules:
+    - Disable more MIPS optimization options which might not be available on
+      all processors.
+
+ -- James Cowgill <jcowgill@debian.org>  Tue, 01 Aug 2017 16:08:54 +0100
+
+ffmpeg (7:3.3.2-1) unstable; urgency=medium
+
+  * Team upload.
+
+  [ Reinhard Tartler ]
+  * New upstream release. (Closes: #869112)
+    - Comes with internal ebur128 library, so drop build-dependency on
+      libebur128-dev.
+
+  [ James Cowgill ]
+  * debian/copyright:
+    - Update.
+  * debian/tests:
+    - Use '-pix_fmt yuv422p' in dnxhd autopkgtests.
+    - Update encdec_list.txt.
+
+ -- James Cowgill <jcowgill@debian.org>  Wed, 26 Jul 2017 21:06:44 +0100
+
+ffmpeg (7:3.2.6-1) unstable; urgency=medium
+
+  * Team upload.
+  * New upstream release.
+  * debian/control: Bump Standards-Version.
+
+ -- Sebastian Ramacher <sramacher@debian.org>  Wed, 21 Jun 2017 22:07:55 +0200
 
 ffmpeg (7:3.2.5-1) unstable; urgency=medium
 
