@@ -84,18 +84,26 @@ static inline int get_vlc_symbol(GetBitContext *gb, VlcState *const state,
     ff_dlog(NULL, "v:%d bias:%d error:%d drift:%d count:%d k:%d",
             v, state->bias, state->error_sum, state->drift, state->count, k);
 
-#if 0 // JPEG LS
-    if (k == 0 && 2 * state->drift <= -state->count)
-        v ^= (-1);
-#else
     v ^= ((2 * state->drift + state->count) >> 31);
-#endif
 
     ret = fold(v + state->bias, bits);
 
     update_vlc_state(state, v);
 
     return ret;
+}
+
+static int is_input_end(FFV1Context *s)
+{
+    if (s->ac != AC_GOLOMB_RICE) {
+        RangeCoder *const c = &s->c;
+        if (c->overread > MAX_OVERREAD)
+            return AVERROR_INVALIDDATA;
+    } else {
+        if (get_bits_left(&s->gb) < 1)
+            return AVERROR_INVALIDDATA;
+    }
+    return 0;
 }
 
 #define TYPE int16_t
@@ -108,7 +116,7 @@ static inline int get_vlc_symbol(GetBitContext *gb, VlcState *const state,
 #define RENAME(name) name ## 32
 #include "ffv1dec_template.c"
 
-static void decode_plane(FFV1Context *s, uint8_t *src,
+static int decode_plane(FFV1Context *s, uint8_t *src,
                          int w, int h, int stride, int plane_index,
                          int pixel_stride)
 {
@@ -132,23 +140,28 @@ static void decode_plane(FFV1Context *s, uint8_t *src,
 
 // { START_TIMER
         if (s->avctx->bits_per_raw_sample <= 8) {
-            decode_line(s, w, sample, plane_index, 8);
+            int ret = decode_line(s, w, sample, plane_index, 8);
+            if (ret < 0)
+                return ret;
             for (x = 0; x < w; x++)
                 src[x*pixel_stride + stride * y] = sample[1][x];
         } else {
-            decode_line(s, w, sample, plane_index, s->avctx->bits_per_raw_sample);
+            int ret = decode_line(s, w, sample, plane_index, s->avctx->bits_per_raw_sample);
+            if (ret < 0)
+                return ret;
             if (s->packed_at_lsb) {
                 for (x = 0; x < w; x++) {
                     ((uint16_t*)(src + stride*y))[x*pixel_stride] = sample[1][x];
                 }
             } else {
                 for (x = 0; x < w; x++) {
-                    ((uint16_t*)(src + stride*y))[x*pixel_stride] = sample[1][x] << (16 - s->avctx->bits_per_raw_sample);
+                    ((uint16_t*)(src + stride*y))[x*pixel_stride] = sample[1][x] << (16 - s->avctx->bits_per_raw_sample) | ((uint16_t **)sample)[1][x] >> (2 * s->avctx->bits_per_raw_sample - 16);
                 }
             }
         }
 // STOP_TIMER("decode-line") }
     }
+    return 0;
 }
 
 static int decode_slice_header(FFV1Context *f, FFV1Context *fs)
@@ -359,7 +372,7 @@ static int read_quant_table(RangeCoder *c, int16_t *quant_table, int scale)
     memset(state, 128, sizeof(state));
 
     for (v = 0; i < 128; v++) {
-        unsigned len = get_symbol(c, state, 0) + 1;
+        unsigned len = get_symbol(c, state, 0) + 1U;
 
         if (len > 128 - i || !len)
             return AVERROR_INVALIDDATA;
@@ -576,8 +589,19 @@ static int read_header(FFV1Context *f)
         if (!f->transparency && !f->chroma_planes) {
             if (f->avctx->bits_per_raw_sample <= 8)
                 f->avctx->pix_fmt = AV_PIX_FMT_GRAY8;
-            else
+            else if (f->avctx->bits_per_raw_sample == 10) {
+                f->packed_at_lsb = 1;
+                f->avctx->pix_fmt = AV_PIX_FMT_GRAY10;
+            } else if (f->avctx->bits_per_raw_sample == 12) {
+                f->packed_at_lsb = 1;
+                f->avctx->pix_fmt = AV_PIX_FMT_GRAY12;
+            } else if (f->avctx->bits_per_raw_sample == 16) {
+                f->packed_at_lsb = 1;
                 f->avctx->pix_fmt = AV_PIX_FMT_GRAY16;
+            } else if (f->avctx->bits_per_raw_sample < 16) {
+                f->avctx->pix_fmt = AV_PIX_FMT_GRAY16;
+            } else
+                return AVERROR(ENOSYS);
         } else if (f->transparency && !f->chroma_planes) {
             if (f->avctx->bits_per_raw_sample <= 8)
                 f->avctx->pix_fmt = AV_PIX_FMT_YA8;
@@ -626,13 +650,22 @@ static int read_header(FFV1Context *f)
             case 0x10: f->avctx->pix_fmt = AV_PIX_FMT_YUVA422P10; break;
             case 0x11: f->avctx->pix_fmt = AV_PIX_FMT_YUVA420P10; break;
             }
+        } else if (f->avctx->bits_per_raw_sample == 12 && !f->transparency) {
+            f->packed_at_lsb = 1;
+            switch(16 * f->chroma_h_shift + f->chroma_v_shift) {
+            case 0x00: f->avctx->pix_fmt = AV_PIX_FMT_YUV444P12; break;
+            case 0x10: f->avctx->pix_fmt = AV_PIX_FMT_YUV422P12; break;
+            case 0x11: f->avctx->pix_fmt = AV_PIX_FMT_YUV420P12; break;
+            }
         } else if (f->avctx->bits_per_raw_sample == 16 && !f->transparency){
+            f->packed_at_lsb = 1;
             switch(16 * f->chroma_h_shift + f->chroma_v_shift) {
             case 0x00: f->avctx->pix_fmt = AV_PIX_FMT_YUV444P16; break;
             case 0x10: f->avctx->pix_fmt = AV_PIX_FMT_YUV422P16; break;
             case 0x11: f->avctx->pix_fmt = AV_PIX_FMT_YUV420P16; break;
             }
         } else if (f->avctx->bits_per_raw_sample == 16 && f->transparency){
+            f->packed_at_lsb = 1;
             switch(16 * f->chroma_h_shift + f->chroma_v_shift) {
             case 0x00: f->avctx->pix_fmt = AV_PIX_FMT_YUVA444P16; break;
             case 0x10: f->avctx->pix_fmt = AV_PIX_FMT_YUVA422P16; break;
@@ -684,7 +717,7 @@ static int read_header(FFV1Context *f)
     } else {
         const uint8_t *p = c->bytestream_end;
         for (f->slice_count = 0;
-             f->slice_count < MAX_SLICES && 3 < p - c->bytestream_start;
+             f->slice_count < MAX_SLICES && 3 + 5*!!f->ec < p - c->bytestream_start;
              f->slice_count++) {
             int trailer = 3 + 5*!!f->ec;
             int size = AV_RB24(p-trailer);
@@ -856,7 +889,7 @@ static int decode_frame(AVCodecContext *avctx, void *data, int *got_frame, AVPac
                 fs->slice_damaged = 1;
             }
             if (avctx->debug & FF_DEBUG_PICT_INFO) {
-                av_log(avctx, AV_LOG_DEBUG, "slice %d, CRC: 0x%08X\n", i, AV_RB32(buf_p + v - 4));
+                av_log(avctx, AV_LOG_DEBUG, "slice %d, CRC: 0x%08"PRIX32"\n", i, AV_RB32(buf_p + v - 4));
             }
         }
 

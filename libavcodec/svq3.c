@@ -285,7 +285,7 @@ static void svq3_add_idct_c(uint8_t *dst, int16_t *block,
         const unsigned z1 = 13 * (block[i + 4 * 0] -      block[i + 4 * 2]);
         const unsigned z2 =  7 *  block[i + 4 * 1] - 17 * block[i + 4 * 3];
         const unsigned z3 = 17 *  block[i + 4 * 1] +  7 * block[i + 4 * 3];
-        const int rr = (dc + 0x80000);
+        const int rr = (dc + 0x80000u);
 
         dst[i + stride * 0] = av_clip_uint8(dst[i + stride * 0] + ((int)((z0 + z3) * qmul + rr) >> 20));
         dst[i + stride * 1] = av_clip_uint8(dst[i + stride * 1] + ((int)((z1 + z2) * qmul + rr) >> 20));
@@ -627,11 +627,6 @@ static av_always_inline void hl_decode_mb_idct_luma(SVQ3Context *s,
                                 s->qscale, IS_INTRA(mb_type) ? 1 : 0);
             }
     }
-}
-
-static av_always_inline int dctcoef_get(int16_t *mb, int index)
-{
-    return AV_RN16A(mb + index);
 }
 
 static av_always_inline void hl_decode_mb_predict_luma(SVQ3Context *s,
@@ -1041,17 +1036,16 @@ static int svq3_decode_slice_header(AVCodecContext *avctx)
         slice_bits   = slice_length * 8;
         slice_bytes  = slice_length + length - 1;
 
-        if (8LL*slice_bytes > get_bits_left(&s->gb)) {
-            av_log(avctx, AV_LOG_ERROR, "slice after bitstream end\n");
-            return -1;
-        }
-
         skip_bits(&s->gb, 8);
 
         av_fast_malloc(&s->slice_buf, &s->slice_size, slice_bytes + AV_INPUT_BUFFER_PADDING_SIZE);
         if (!s->slice_buf)
             return AVERROR(ENOMEM);
 
+        if (slice_bytes * 8LL > get_bits_left(&s->gb)) {
+            av_log(avctx, AV_LOG_ERROR, "slice after bitstream end\n");
+            return AVERROR_INVALIDDATA;
+        }
         memcpy(s->slice_buf, s->gb.buffer + s->gb.index / 8, slice_bytes);
 
         init_get_bits(&s->gb_slice, s->slice_buf, slice_bits);
@@ -1070,14 +1064,16 @@ static int svq3_decode_slice_header(AVCodecContext *avctx)
         av_log(s->avctx, AV_LOG_ERROR, "illegal slice type %u \n", slice_id);
         return -1;
     }
+    if (get_bits1(&s->gb_slice)) {
+        avpriv_report_missing_feature(s->avctx, "Media key encryption");
+        return AVERROR_PATCHWELCOME;
+    }
 
     s->slice_type = ff_h264_golomb_to_pict_type[slice_id];
 
     if ((header & 0x9F) == 2) {
-        i = (s->mb_num < 64) ? 6 : (1 + av_log2(s->mb_num - 1));
+        i = (s->mb_num < 64) ? 5 : av_log2(s->mb_num - 1);
         get_bits(&s->gb_slice, i);
-    } else {
-        skip_bits1(&s->gb_slice);
     }
 
     s->slice_num      = get_bits(&s->gb_slice, 8);
@@ -1556,7 +1552,7 @@ static int svq3_decode_frame(AVCodecContext *avctx, void *data,
                         return -1;
                 }
                 if (s->slice_type != s->pict_type) {
-                    avpriv_request_sample(avctx, "non constant slice type\n");
+                    avpriv_request_sample(avctx, "non constant slice type");
                 }
                 /* TODO: support s->mb_skip_run */
             }

@@ -404,7 +404,8 @@ static int rv34_decode_inter_mb_header(RV34DecContext *r, int8_t *intra_types)
             r->mb_type[mb_pos] = RV34_MB_B_DIRECT;
     }
     r->is16 = !!IS_INTRA16x16(s->current_picture_ptr->mb_type[mb_pos]);
-    rv34_decode_mv(r, r->block_type);
+    if (rv34_decode_mv(r, r->block_type) < 0)
+        return -1;
     if(r->block_type == RV34_MB_SKIP){
         fill_rectangle(intra_types, 4, 4, r->intra_types_stride, 0, sizeof(intra_types[0]));
         return 0;
@@ -520,7 +521,7 @@ static int calc_add_mv(RV34DecContext *r, int dir, int val)
 {
     int mul = dir ? -r->mv_weight2 : r->mv_weight1;
 
-    return (val * mul + 0x2000) >> 14;
+    return (int)(val * (SUINT)mul + 0x2000) >> 14;
 }
 
 /**
@@ -866,6 +867,11 @@ static int rv34_decode_mv(RV34DecContext *r, int block_type)
     for(i = 0; i < num_mvs[block_type]; i++){
         r->dmv[i][0] = get_interleaved_se_golomb(gb);
         r->dmv[i][1] = get_interleaved_se_golomb(gb);
+        if (r->dmv[i][0] == INVALID_VLC ||
+            r->dmv[i][1] == INVALID_VLC) {
+            r->dmv[i][0] = r->dmv[i][1] = 0;
+            return AVERROR_INVALIDDATA;
+        }
     }
     switch(block_type){
     case RV34_MB_TYPE_INTRA:
@@ -1756,6 +1762,9 @@ int ff_rv34_decode_frame(AVCodecContext *avctx,
                 r->mv_weight1 = r->mv_weight2 = r->weight1 = r->weight2 = 8192;
                 r->scaled_weight = 0;
             }else{
+                if (FFMAX(dist0, dist1) > refdist)
+                    av_log(avctx, AV_LOG_TRACE, "distance overflow\n");
+
                 r->mv_weight1 = (dist0 << 14) / refdist;
                 r->mv_weight2 = (dist1 << 14) / refdist;
                 if((r->mv_weight1|r->mv_weight2) & 511){
